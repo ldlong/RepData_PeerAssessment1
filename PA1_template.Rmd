@@ -9,7 +9,9 @@ output:
 ## Loading and preprocessing the data
 Load the activity.csv file into R
 ```{r}
-data = read.csv('activity.csv', header = T)
+data = read.csv('activity.csv', header = T) #load data
+options("scipen" =100, "digits" = 2) # override R's tendency to use scientific notation
+library(ggplot2) #load graphics package
 ```
 
 
@@ -29,11 +31,74 @@ median(totalsteps$steps, na.rm=TRUE)
 ```
 
 ## What is the average daily activity pattern?
+```{r}
+timeseries <- aggregate(steps ~ interval, data = data, FUN = mean) #aggregate data
+maxsteps <- timeseries[which.max(timeseries$steps),]$interval #identify interval with max steps
 
+plot(timeseries, type="l",xlab="Interval",ylab="Average steps per day",
+     main="Average daily activity pattern")
+abline(v = maxsteps , col = "red")
+```
+
+The maximum number of steps occur during interval **`r maxsteps`**.
 
 
 ## Imputing missing values
+1. ***Calculate the number of missing values:***
 
+```{r}
+missing = sum(is.na(data$steps))
+```
+
+The total number of missing values is **`r missing`**.
+
+
+2. ***Fill in the missing values with the mean:***
+```{r}
+newdata <- data
+newdata[is.na(data$steps), ]$steps <- mean(data$steps,na.rm=TRUE)
+```
+
+3. ***Create a new dataset:***
+```{r}
+newdata[1:10,]  #Print first ten lines
+```
+
+4. ***Create a histogram and calculate the mean and median of the new dataset:***
+```{r}
+totalstepsnew <- aggregate(steps ~ date, newdata, sum)
+hist(totalstepsnew$steps)
+```
+
+Calculate the mean and median steps:
+```{r}
+mean(totalstepsnew$steps)
+median(totalstepsnew$steps)
+```
+
+### Mean comparison:
+The average number of  steps per day of the original dataset is ***`r mean(totalsteps$steps, na.rm=TRUE)`*** and the average of the imputed
+dataset is ***`r mean(totalstepsnew$steps)`***. The values are similar.
+
+### Median comparison:
+The median number of  steps per day of the original dataset is ***`r median(totalsteps$steps, na.rm=TRUE)`*** and the median of the imputed
+dataset is ***`r median(totalstepsnew$steps)`***. The values are similar.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r,echo=TRUE}
+newdata$date <- as.Date(newdata$date, "%Y-%m-%d")
+newdata$day <- weekdays(newdata$date)
+newdata$type <- c("Weekday")
+for (i in 1:nrow(newdata)){
+  if (newdata$day[i] == "Saturday" || newdata$day[i] == "Sunday"){
+    newdata$type[i] <- "Weekend"
+  }
+}
+newdata$type <- as.factor(newdata$type)
+aggdatatype <- aggregate(steps ~ interval+type, newdata, mean)
+qplot(interval, steps, data=aggdatatype, geom=c("line"), xlab="Interval", 
+      ylab="Average Steps per Day", main="Comparison of Average Steps on Weekdays and Weekends") + facet_wrap(~ type, ncol=1)
+```
+
